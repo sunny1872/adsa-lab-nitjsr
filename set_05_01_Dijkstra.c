@@ -1,89 +1,141 @@
-/******************************************************************************
-
-Welcome to GDB Online.
-GDB online is an online compiler and debugger tool for C, C++, Python, Java, PHP, Ruby, Perl,
-C#, OCaml, VB, Swift, Pascal, Fortran, Haskell, Objective-C, Assembly, HTML, CSS, JS, SQLite, Prolog.
-Code, Compile, Run and Debug online from anywhere in world.
-
-*******************************************************************************/
 #include <stdio.h>
-#include<stdlib.h>
+#include <stdlib.h>
+#include <limits.h>
 
-struct list{
-    int node , weight ;
-    struct list* link ;
-};
+#define INF LLONG_MAX
+#define MAXN 100005
+#define MAXM 200005
 
-struct heap_node{
-    int node , weight ;
-} ;
+typedef long long ll;
 
-typedef struct heap_node pair ;
-typedef struct list lt ;
+typedef struct Edge {
+    int v;
+    ll w;
+    struct Edge* next;
+} Edge;
 
-void heapify_up(int index , pair* heap){
-    if(index > 0){
-        int p_index = (index - 1) / 2 ;
-        if(heap[p_index].weight > heap[index].weight){
-            pair temp = heap[index] ;
-            heap[index] = heap[p_index] ;
-            heap[p_index] = temp ;
-            heapify(p_index , heap) ;
-        }
+Edge* adj[MAXN];   // adjacency list
+int parent[MAXN];  // parent array
+ll dist[MAXN];     // distance array
+
+// Priority queue node
+typedef struct {
+    int v;
+    ll d;
+} PQNode;
+
+// Min-heap for priority queue
+PQNode heap[MAXM];
+int heapSize = 0;
+
+void swapPQ(int i, int j) {
+    PQNode temp = heap[i];
+    heap[i] = heap[j];
+    heap[j] = temp;
+}
+
+void pushPQ(int v, ll d) {
+    heap[++heapSize].v = v;
+    heap[heapSize].d = d;
+    int i = heapSize;
+    while (i > 1 && heap[i].d < heap[i/2].d) {
+        swapPQ(i, i/2);
+        i /= 2;
     }
 }
 
-void heapify_down(int index , int n , pair* heap){
-    if(index <= n){
-        int left = 2*index + 1 ;
-        int right = 2*index + 2 ;
-        if(left<=n and )
+PQNode popPQ() {
+    PQNode top = heap[1];
+    heap[1] = heap[heapSize--];
+    int i = 1;
+    while (1) {
+        int l = 2*i, r = 2*i+1, smallest = i;
+        if (l <= heapSize && heap[l].d < heap[smallest].d) smallest = l;
+        if (r <= heapSize && heap[r].d < heap[smallest].d) smallest = r;
+        if (smallest != i) {
+            swapPQ(i, smallest);
+            i = smallest;
+        } else break;
     }
-    
+    return top;
 }
 
+int isEmptyPQ() {
+    return heapSize == 0;
+}
 
-int main()
-{
-    int no_of_nodes ; scanf("%d",&no_of_nodes) ;
-    lt* adj[no_of_nodes] ;
-    for(int i = 0 ; i < no_of_nodes ; i ++) adj[i] = NULL ;
-    int no_of_edges ; scanf("%d",&no_of_edges) ;
-    for(int i = 0 , u , v , w ; i < no_of_edges ; i ++){
-        scanf("%d %d %d",&u,&v,&w) ;
-        lt* p1 = {v , w , NULL} ;
-        lt* p2 = {u , w , NULL} ;
-        lt* root = adj[u] ;
-        if(root == NULL) adj[u] = p1 ;
-        else{
-            while(root -> link != NULL) root = root -> link ;
-            root -> link = p1 ;
-        }
-        lt* root = adj[v] ;
-        if(root == NULL) adj[v] = p2 ;
-        else{
-            while(root -> link != NULL) root = root -> link ;
-            root -> link = p2 ;
-        }
+void addEdge(int u, int v, ll w) {
+    Edge* e = (Edge*) malloc(sizeof(Edge));
+    e->v = v;
+    e->w = w;
+    e->next = adj[u];
+    adj[u] = e;
+}
+
+void dijkstra(int source, int n) {
+    for (int i = 1; i <= n; i++) {
+        dist[i] = INF;
+        parent[i] = -1;
     }
-    int ans[no_of_nodes] ;
-    for(int i = 0 ; i < no_of_nodes ; i ++) ans[i] = INT_MAX ;
-    pair heap[no_of_nodes] ;
-    int index = -1 ;
-    heap[++index] = (pair){0 , 0} ;
-    while(index > -1){
-        pair p = heap[0] ;
-        lt* root = adj[p.node] ;
-        heap[0] = heap[index --] ;
-        heapify_down(0 , index , heap) ;
-        while(root != NULL){
-            int new_weight = p.weight + root -> weight ;
-            if(ans[p -> node] > new_weight){
-                heap[++index] = (pair){p->node , new_weight} ;
-                heapify_up(index , heap) ;
+    dist[source] = 0;
+    parent[source] = source;
+    pushPQ(source, 0);
+
+    while (!isEmptyPQ()) {
+        PQNode cur = popPQ();
+        int u = cur.v;
+        ll d = cur.d;
+
+        if (d > dist[u]) continue;
+
+        for (Edge* e = adj[u]; e != NULL; e = e->next) {
+            int v = e->v;
+            ll w = e->w;
+            if (dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                parent[v] = u;
+                pushPQ(v, dist[v]);
             }
         }
     }
-    
+}
+
+int main() {
+    int n, m;
+    scanf("%d %d", &n, &m);
+
+    for (int i = 0; i <= n; i++) adj[i] = NULL;
+
+    while (m--) {
+        int u, v;
+        ll w;
+        scanf("%d %d %lld", &u, &v, &w);
+        addEdge(u, v, w);
+        addEdge(v, u, w);
+    }
+
+    int source = 1;
+    dijkstra(source, n);
+
+    if (dist[n] == INF) {
+        printf("-1\n");
+        return 0;
+    }
+
+    // Reconstruct path
+    int path[MAXN], len = 0;
+    int node = n;
+    while (parent[node] != node) {
+        path[len++] = node;
+        node = parent[node];
+    }
+    path[len++] = source;
+
+    // Print path in correct order
+    for (int i = len - 1; i >= 0; i--) {
+        printf("%d ", path[i]);
+    }
+    printf("\n");
+
     return 0;
 }
