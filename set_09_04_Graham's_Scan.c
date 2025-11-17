@@ -1,38 +1,49 @@
-/* graham.c - read n then n points (x y) ints; prints hull points in CCW */
-#include <stdio.h>
-#include <stdlib.h>
+struct pt {
+    double x, y;
+    bool operator == (pt const& t) const {
+        return x == t.x && y == t.y;
+    }
+};
 
-typedef long long ll;
-typedef struct{ ll x,y; } P;
-P *a;
-int n;
-
-ll cross(const P *o,const P *a,const P *b){ return (a->x - o->x)*(b->y - o->y) - (a->y - o->y)*(b->x - o->x); }
-
-int cmp(const void *A,const void *B){
-    P *p=(P*)A,*q=(P*)B;
-    if(p->x!=q->x) return p->x < q->x ? -1:1;
-    return p->y < q->y ? -1: (p->y>q->y);
+int orientation(pt a, pt b, pt c) {
+    double v = a.x*(b.y-c.y)+b.x*(c.y-a.y)+c.x*(a.y-b.y);
+    if (v < 0) return -1; // clockwise
+    if (v > 0) return +1; // counter-clockwise
+    return 0;
 }
 
-int main(){
-    if(scanf("%d",&n)!=1) return 0;
-    a = malloc(n * sizeof(P));
-    for(int i=0;i<n;i++) scanf("%lld %lld",&a[i].x,&a[i].y);
-    if(n<3){ for(int i=0;i<n;i++) printf("%lld %lld\n", a[i].x, a[i].y); return 0; }
-    qsort(a,n,sizeof(P),cmp);
-    P *h = malloc((2*n) * sizeof(P));
-    int k=0;
-    for(int i=0;i<n;i++){
-        while(k>=2 && cross(&h[k-2], &h[k-1], &a[i]) <= 0) k--;
-        h[k++]=a[i];
+bool cw(pt a, pt b, pt c, bool include_collinear) {
+    int o = orientation(a, b, c);
+    return o < 0 || (include_collinear && o == 0);
+}
+bool collinear(pt a, pt b, pt c) { return orientation(a, b, c) == 0; }
+
+void convex_hull(vector<pt>& a, bool include_collinear = false) {
+    pt p0 = *min_element(a.begin(), a.end(), [](pt a, pt b) {
+        return make_pair(a.y, a.x) < make_pair(b.y, b.x);
+    });
+    sort(a.begin(), a.end(), [&p0](const pt& a, const pt& b) {
+        int o = orientation(p0, a, b);
+        if (o == 0)
+            return (p0.x-a.x)*(p0.x-a.x) + (p0.y-a.y)*(p0.y-a.y)
+                < (p0.x-b.x)*(p0.x-b.x) + (p0.y-b.y)*(p0.y-b.y);
+        return o < 0;
+    });
+    if (include_collinear) {
+        int i = (int)a.size()-1;
+        while (i >= 0 && collinear(p0, a[i], a.back())) i--;
+        reverse(a.begin()+i+1, a.end());
     }
-    for(int i=n-2, t=k+1;i>=0;i--){
-        while(k>=t && cross(&h[k-2], &h[k-1], &a[i]) <= 0) k--;
-        h[k++]=a[i];
+
+    vector<pt> st;
+    for (int i = 0; i < (int)a.size(); i++) {
+        while (st.size() > 1 && !cw(st[st.size()-2], st.back(), a[i], include_collinear))
+            st.pop_back();
+        st.push_back(a[i]);
     }
-    // k-1 is number of distinct hull points, prints CCW starting from leftmost
-    for(int i=0;i<k-1;i++) printf("%lld %lld\n", h[i].x, h[i].y);
-    free(a); free(h);
-    return 0;
+
+    if (include_collinear == false && st.size() == 2 && st[0] == st[1])
+        st.pop_back();
+
+    a = st;
 }
